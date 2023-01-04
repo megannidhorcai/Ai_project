@@ -1,0 +1,1345 @@
+---
+title: '''A quantitative analysis using feature engineering to train and predict AI
+  models using Machine learning '''
+author: "M.D'Arcy 40302488"
+date: "13/03/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rmarkdown)
+#render("project1.Rmd", output_format = "pdf_document")
+```
+
+## Introduction
+This report guides the reader through the process of understanding AI and Machine learning.
+Today more and more industry related businesses are using AI to improve their daily work load. From using it to aid statistical analysis to training a model to caption what is in an image, Machine Learning certainly has cemented its purpose in an industry wide work.
+
+Throughout my report, I will explore the creation of a portable bitmap image  dataset from handwritten letters,faces,and exclamation marks, performance of feature engineering, a statistical analysis and finally the implentation of a machine learning model.All code is written in R through R studio
+
+
+## Section 1 
+--------------- DataSet ---------------
+
+The project uses a dataset comprised of 140 individual images, these break down into 20 smiley face, 20 sad face, 20 exclamation mark and letters a -j with 8 of each.
+The symbols are created using gimp specifically contained in an 18x18 grid. Each set has their own criteria to ensure a base standard;
+
+each face consists of two eyes, a nose and a mouth, each symbol has to be in an upright position,and must possess a style of "handwritten".
+
+--------------- Creation of dataset ---------------
+
+The 140 files were exported as portable bitmap format (PGM), type ASCII.
+Once finished, I open the dataset in R
+Studio and read in the list of files and loop through them. Skipping the first four lines of the PGM file header
+and added the values iteratively to a matrix.
+To analyse the images we turn each one into a comma delimited file, any pixel value >128 is represented using a 1 and <128 is 0.
+Using this a matrix is created and stored in a .csv file.A for loop is created to circle through all 140 images. 
+
+```{r, include=FALSE}
+library(readr)
+files=list.files(path="Original_Images")[1:140]
+#files
+for (image in files){
+  input = paste("Original_Images/",image,sep="")
+  img_matrix = matrix(read.delim(input)[4:327,],ncol=18, nrow=18 ,byrow=TRUE)
+  img_matrix[img_matrix <128] = 1 
+  img_matrix[img_matrix>=128] =0
+ 
+  
+  output_path = strsplit(image,".p")[[1]][1]
+  path = paste(output_path,".csv",sep="")
+  path_csv = paste("csv_images/",path,sep="")
+  write.table(img_matrix,file = path_csv,sep=",",col.names=FALSE,row.names=FALSE)
+  
+}
+```
+
+## Section 2
+---------------Introduction---------------
+
+In Section 2 we explore feature engineering,where we examine different aspects which could aid in the identification of our images.
+This array of characteristics describes the image,with 16 features in total. We define a pixel as having 8 neighbors, and create a matrix first from our csv files.
+
+We  create identifiers for the images using index and for the features using labels.
+I  read a single  CSV file and created a new test matrix with
+the same dimensions from section one. However, this time they needed transposed once or twice before the
+shape of the image normalized and I could run the various calculations on it. Once I had a functional matrix, I
+started from feature one.
+
+---------------Feature 1 ---------------
+
+ We created a function called "nr_pix" which measures the number of black pixels in the image.
+ 
+ ---------------Feature 2-5 ---------------
+ 
+We build on the function "nr_pix" using it for functions "rows_with_1", "cols_with_1","rows_with_3p" and "cols_with3p" which measures the number of black pixels in rows and columns specifically 1 and 3 or more pixels respectively.
+I made use of built in features such as sum,col sum, and row sum to have both ease of understanding and a documented function.
+The first five features have small changes in the pattern but is similar in calculations.
+
+--------------- Feature 6---------------
+
+Following on, we examine aspect ratio which is The vertical distance in pixels, between the topmost and bottomost 
+black  pixels  in  the  image  which are measured  from  the  pixel  centre  called the height.  The  horizontal  distance in  pixels,  between  the  leftmost  and  rightmost black pixels in the image measured from the pixel centre is called the width. I again made use of R built-in function this time using the width, min and
+max functions to iteratively search through the columns or row depending on whether I was calculating height or
+width.
+This feature is width/height. 
+
+---------------Feature 7-14 ---------------
+
+The next 7 features examine the neighbors of the pixel, following on similarly from how we first created "nr_pix" we first create "neigh_1" which is the number of black pixels with only 1 corresponding pixel in the 8 tiles around it. 
+From this we take each of the next features and explore its pixels neighbors shown in the diagram where the green represent pixel spaces without a black pixel present.
+![Visual represenation of neighbour functions.](C:\\Users\\megan\\OneDrive\\Desktop\\neighbours.PNG)
+ We used a counter to count the number of times a specific pattern was seen within a given
+matrix. We then created a nested for loop that would search through rows and columns using the index of for nested
+loops and increment by one to depending on the pattern. This was all written within a single if statement
+and printed the counter at the end of the loop
+
+The most important thing  was when I was tracing my code. I wanted to able to reuse my code to make it more streamlined and less confusing, which is where I implemented y vertical and horizontal functions.
+
+--------------- Feature 15-16 --------------- 
+
+The last two features involve the use of the clump and raster libraries where we examine "eyes" and "connected_areas" both functions where a region of white space is enclosed with black pixels.
+
+I encountered difficulty both understanding the raster and clump libraries, and transforming my information into a usable function. The program was returning -inf until I released I needed to create a new matrix 
+to invert it to.
+
+---------------Custom Features --------------- 
+For my custom features I examined different structures of matrices. I first thought that an inclusion of upper and lower triangular matrices would help in identification of curves present in "a","b" and smiley faces,
+
+However, I could only hard-code the matrix and was only identified a handful of times in further look into the features.csv. I abandoned these features and pursued a separate type of matrix analysis called "stocastic matrix", Which examines all the pixels in the matrices and then returns the probability of a black pixel present.
+From this I wanted to link the connected areas aspect and use it as a feature. Further analysis occurs in section 3.
+
+---------------Creation of Features CSV ---------------
+
+Once the code had been tested, a function  was created to call them iteratively inside a for loop which I used to create the final feature csv.
+
+The data collected from our 16 features is stored in Features.csv using the write table function.
+
+---------------Reflection --------------- 
+
+For this section I had difficulty visualizing the neighbor pixels and the concept of why we needed each function. It wasn't until section 3 that I understood through the statistical analysis the importance of each feature.
+Upon discussion with classmates about section 2 it appeared that many chose not to write it as functions. For my code personally I prefer to use functions as it allows me to return and test each feature individually. I then called each function with the matrix, where each function has a row matching 1 of the 140 images each. I then used the bind function to add column titles and exported to the csv.
+Both the data frame and csv is useful for section 3 analysis.
+
+
+
+```{r,include=FALSE}
+#install.packages("sna")
+#install.packages("raster")
+library(sna)
+
+library(raster)
+library(sp)
+library(igraph)
+#section two code
+
+#get and set current dir to work from.
+getwd()
+setwd("~/Ai coursework/images1")
+
+#create a list of the files from your target directory
+df_csv <- list.files('csv_images/', all.files = TRUE)[3:142]
+
+
+
+#Feature 1 
+#feature functions 
+nrpix <- function(nextFile){
+  sumofcolpix <- colSums(nextFile != 0)
+  nrpix <- sum(sumofcolpix)
+  return(nrpix)
+}
+#Feature 2 
+
+rows_with_1 <-function(nextFile){
+  rowCheck <- rowSums(nextFile == 1) == 1 
+  count_one <- sum(rowCheck)
+  return(count_one)
+}
+#Feature 4 
+rows_with_3p <-function(nextFile){
+  rowCheck <- rowSums(nextFile == 1) >= 3  
+  count_one <- sum(rowCheck)
+  return(count_one)
+}
+#Feature 3
+cols_with_1 <-function(nextFile){
+  colCheck <- colSums(nextFile == 1) == 1 
+  count_one <- sum(colCheck)
+  return(count_one)
+}
+#feature 5
+col_with_3p <-function(nextFile){
+  colCheck <- colSums(nextFile == 1) >= 3 
+  count_one <- sum(colCheck)
+  return(count_one)
+}
+#feature 6 aspect ratio 
+height <- function(nextMatrix)
+{
+  for(i in 1:(ncol(nextMatrix)-1))
+  {
+    colsWithOne <- which(nextMatrix == 1, arr.ind = TRUE)
+    colsWithZero<- which(nextMatrix == 0, arr.ind = FALSE)
+    above <- min(colsWithOne[,1])
+    below <- max(colsWithOne[,1])
+    
+    height <- below - above
+    
+  }
+  return(height)
+}
+
+width <- function(nextMatrix)
+{
+  for(i in 1:(nrow(nextMatrix)-1))
+  {
+    rowWithOne <- which(nextMatrix == 1, arr.ind = TRUE)
+    rowWithZero<- which(nextMatrix == 0, arr.ind = FALSE)
+    
+    left <- min(rowWithOne[1,])
+    right <- max(rowWithOne[1,])
+    
+    width <- right - left
+  }
+  return(width)
+}
+
+
+
+no_neigh_left <- function(nextMatrix){
+  counter = 0
+  
+  for(i in 1:(nrow(nextMatrix)-1)) {
+    for(j in 1:(ncol(nextMatrix)-1)) {
+      
+      if(nextMatrix[i,j]==1 & nextMatrix[i,j+1]==0 & nextMatrix[i+1,j]==1 & nextMatrix[i+1,j+1]==0) {
+        counter = counter + 1
+      }
+    }
+  }
+  return(counter)
+  
+}
+
+no_neigh_right <- function(nextMatrix){
+  counter = 0
+  
+  for(i in 1:(nrow(nextMatrix)-1)) {
+    for(j in 1:(ncol(nextMatrix)-1)) {
+      
+      if(nextMatrix[i,j]==0 & nextMatrix[i,j+1]==1 & nextMatrix[i+1,j]==0 & nextMatrix[i+1,j+1]==1) {
+        counter = counter + 1
+      }
+    }
+  }
+  return(counter)
+  
+}
+
+no_neigh_horiz <- function(nextMatrix)
+{
+  numberOfblack <- nrpix(nextMatrix)
+  left <- no_neigh_left(nextMatrix)
+  right <- no_neigh_right(nextMatrix)
+  total <- sum(left, right)
+  
+  #sum of left and right pixels divided by total number of black pixels.
+  return(total / numberOfblack)
+}
+
+
+
+no_neigh_below <- function(nextMatrix){
+  counter = 0
+  
+  for(i in 1:(nrow(nextMatrix)-1)) {
+    for(j in 1:(ncol(nextMatrix)-1)) {
+      
+      if(nextMatrix[i,j]==0 & nextMatrix[i,j+1]==0 & nextMatrix[i+1,j]==1 & nextMatrix[i+1,j+1]==1) {
+        counter = counter + 1
+      }
+    }
+  }
+  return(counter)
+  
+}
+
+no_neigh_above <- function(nextMatrix){
+  counter = 0
+  
+  for(i in 1:(nrow(nextMatrix)-1)) {
+    for(j in 1:(ncol(nextMatrix)-1)) {
+      
+      if(nextMatrix[i,j]==1 & nextMatrix[i,j+1]==1 & nextMatrix[i+1,j]==0 & nextMatrix[i+1,j+1]==0) {
+        counter = counter + 1
+      }
+    }
+  }
+  return(counter)
+  
+}
+
+
+no_neigh_vert <- function(nextMatrix)
+{
+  numberOfblack <- nrpix(nextMatrix)
+  bottom <- no_neigh_below(nextMatrix)
+  right <- no_neigh_above(nextMatrix)
+  total <- sum(bottom, right)
+  
+  return(total / numberOfblack)
+}
+
+
+#addtional feature Stocastic Matrix
+#g<- function(nextMatrix){
+#make.stochastic(g,mode="row")
+#make.stochastic(g,mode="col")
+#make.stochastic(g,mode="rowcol")
+#return(g)
+#}
+
+#creates an empty dataframe
+output <-  NULL
+
+
+#iterative section for all the csv's and add them to the new matix with rbind.
+for(file in df_csv)
+{
+  
+  #filename<-basename(df_csv[file])
+  filename = paste('csv_images/',file,sep="")
+  
+  featureIndex = substr((strsplit(file,"_")[[1]][3]),1,2)
+  
+  # substring to get the label - e.g. a, b, c... smiley etc.
+  featurename = strsplit(file,"_")[[1]][2]
+  
+  # reads the file in and converts it to a matrix
+  nft = as.matrix(read.csv(filename, header=FALSE))
+  nft
+  
+  numberOfPixels <- nrpix(nft)
+  numberOfPixels
+  
+  rowsWith1 <- rows_with_1(nft)
+  rowsWith1
+  
+  colsWith1 <- cols_with_1(nft)
+  colsWith1
+  
+  rowsWith3p <- rows_with_3p(nft)
+  rowsWith3p
+  
+  colWith3p <- col_with_3p(nft)
+  colWith3p
+  
+  heightFunc <- height(nft)
+  heightFunc
+  
+  widthFunc <- width(nft)
+  widthFunc
+  
+  left <-no_neigh_left(nft)
+  left
+
+  right <- no_neigh_right(nft)
+  right
+  
+  vert <- no_neigh_vert(nft)
+  vert
+  
+  above <- no_neigh_above(nft)
+  above
+  
+  below <- no_neigh_below(nft)
+  below
+  
+  horiz <- no_neigh_horiz(nft)
+  horiz
+  
+
+  
+ # Sto <-g(nft)
+  #Sto
+  
+  
+  col_names <-c(featurename, featureIndex,numberOfPixels, rowsWith1, colsWith1, rowsWith3p, colWith3p,heightFunc,widthFunc, left,right,vert,above,below,horiz)
+  #Sto
+  
+  featureResult <-c(featurename, featureIndex,numberOfPixels, rowsWith1, colsWith1, rowsWith3p, colWith3p,heightFunc,widthFunc, left,right,vert,above,below,horiz)
+  #Sto)
+
+  
+  output <- rbind(output, featureResult)
+
+}
+
+
+#adds header labels to the features data frame
+colnames(output) <- c("label", "index", "nr_pix", "row_with_1","cols_with_1", "rows_with_3p", "cols_with_3p", "height", "width","no_neigh_left", "no_neigh_right", "no_neigh_horiz","no_neigh_above","no_neigh_below","no_neigh_vert")
+
+# Last name of final feature to be included : "stochastic_matrix"
+
+
+
+
+write.csv(output, file="40302488_features.csv", row.names=FALSE)
+
+
+
+
+```
+## Section 3 Introduction
+
+Section 3 of our report dives into the Statistical analysis of feature data.
+To explore which features are important for distinguishing between our handwritten symbol images we perform descriptive statistics and hypothesis testing, and then represent the results visually. Further to this analysis, an interesting comparison between 1 pixel and 3 pixels or more with both rows and columns respectively would be interesting to confirm the possibilities set out above in our figure captions. Another graphical representation of the above histograms is exploring them as qq plots which is a plot of the quantiles of the first data set against the quantiles of the second data set. A 45-degree reference line is also plotted. If the two sets come from a population with the same distribution, the points should fall approximately along this reference line. The more points clung to the line the closer it is to a normal distrubtion.
+
+## Section 3.1
+We first examine the results of our 6 features using histograms with a density overlay to help aid understanding of the distribution. 
+
+```{r,include=FALSE}
+library(ggplot2)
+
+library(knitr)
+getwd()
+setwd("~/Ai coursework/images1")
+data <- read.csv("40302488_features.csv", header = TRUE, sep = ",")
+colnames(data) <- c("label", "index", "nr_pix", "row_with_1","cols_with_1", "rows_with_3p", "cols_with_3p", "aspect_ratio","no_neigh_left", "no_neigh_right","no_neigh_above","no_neigh_below","no_neigh_vert","no_neigh_horiz","eyes")
+#View(data)
+
+#Function 1
+  geom_histogram(color="black", fill="white",binwidth = 2)
+ p<-ggplot(data, aes(x=nr_pix)) + 
+ geom_histogram(aes(y=..density..), colour="black",fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") 
+p
+#Function 2
+  geom_histogram(color="black", fill="white",binwidth = 5)
+ p1<-ggplot(data, aes(x=row_with_1)) + 
+ geom_histogram(aes(y=..density..), colour="black",fill="white")+
+ geom_density(alpha=.2, fill="#AB3BAD") 
+p1
+#Function 3
+  geom_histogram(color="black", fill="white",binwidth = 5)
+ p2<-ggplot(data, aes(x=cols_with_1)) + 
+ geom_histogram(aes(y=..density..), colour="black",fill="white")+
+ geom_density(alpha=.2, fill="#2B8BAD") 
+p2
+#Function 4
+  geom_histogram(color="black", fill="white",binwidth = 5)
+ p3<-ggplot(data, aes(x=rows_with_3p)) + 
+ geom_histogram(aes(y=..density..), colour="black",fill="white")+
+ geom_density(alpha=.2, fill="#E4FF5C") 
+p3
+#Function 5
+  geom_histogram(color="black", fill="white",binwidth = 2)
+ p4<-ggplot(data, aes(x=cols_with_3p)) + 
+ geom_histogram(aes(y=..density..), colour="black",fill="white")+
+ geom_density(alpha=.2, fill="#6AD1C5") 
+p4
+#Function 6
+  geom_histogram(color="black", fill="white",binwidth = 2)
+ p5<-ggplot(data, aes(x=aspect_ratio)) + 
+ geom_histogram(aes(y=..density..), colour="black",fill="white")+
+ geom_density(alpha=.2, fill="#D16A76") 
+p5
+
+#Section 3.2
+ 
+#first I spilt dataframe
+data_letters <-data.frame(data[1:80, ])
+#non-letters
+data_nonletters <- data.frame(data[81:140, ])
+
+summary_table = NULL
+
+for(i in (3:14)){
+  mean_val = mean(data[,i])
+  med_val = median(data[,i])
+  
+  min_val = min(data[,i])
+  max_val = max(data[,i])
+
+  sd_val = sd(data[,i])
+  se_val = sd_val/sqrt(length(na.omit(data[,i])))
+  
+  add_row = c(mean_val,med_val, min_val, max_val,  sd_val, se_val)
+  
+  summary_table = rbind(summary_table,add_row)
+}
+rownames(summary_table) = c("nr_pix", "rows_with_1", "cols_with_1", "rows_with_3p", "cols_with_3p","aspect_ratio","no_neigh_above","no_neigh_below","no_neigh_left","no_neigh_right","no_neigh_horiz","no_neigh_vert")
+colnames(summary_table) = c("Mean", "Median", "Min Value", "Max Value", "SD", "SE")
+summary_table
+
+data_3.2= data
+
+data_3.2$letter = 0
+for( i in (1:80)){
+  data_3.2[i,14] = 1
+}
+letters_summary = summary(data_letters)
+letters_sd = sapply(data_letters[,3:14],sd)
+letters_mean = sapply(data_letters[,3:14],mean)
+letters_median = sapply(data_letters[,3:14],median)
+
+letters_max = sapply(data_letters[,3:14],max)
+letters_min = sapply(data_letters[,3:14],min)
+
+quart = sapply(data_letters[,3:14],quantile)
+letters_q1 = quart[2,]
+letters_q3 = quart[4,]
+
+output_letters_3.2 = rbind(letters_min,letters_q1,letters_median,letters_mean,letters_q3,letters_max,letters_sd)
+output_letters_3.2
+
+nonletters_summary = summary(data_nonletters)
+nonletters_sd = sapply(data_nonletters[,3:14],sd)
+nonletters_mean = sapply(data_nonletters[,3:14],mean)
+nonletters_median = sapply(data_nonletters[,3:14],median)
+
+nonletters_max = sapply(data_nonletters[,3:14],max)
+nonletters_min = sapply(data_nonletters[,3:14],min)
+
+quart = sapply(data_nonletters[,3:14],quantile)
+nonletters_q1 = quart[2,]
+nonletters_q3 = quart[4,]
+
+output_nonletters_3.2 = rbind(nonletters_min,nonletters_q1,nonletters_median,nonletters_mean,nonletters_q3,nonletters_max,nonletters_sd)
+output_nonletters_3.2
+
+
+library(knitr)
+
+```
+##Nr_pix (Number of black pixels)
+```{r, }
+p
+ qqnorm(data$nr_pix, pch=1, frame=FALSE)
+qqline(data$nr_pix, col = "steelblue", lwd=2)
+
+```
+
+
+Fig(1) shows nr_pix represented as a histogram.The function has been successful in collecting its data which means that the following histograms can be analysed and explored. The histogram appears to be mutlimodal with 1 prominent peak,exploration of the QQ-Plot shows it to be normally distributed, The three peaks could possibly be the three classifications, letters,faces and exclamation mark as they are similar to each other.
+
+##Row_with_1p(Rows with only 1 pixel)
+```{r }
+p1
+qqnorm(data$cols_with_1, pch=1, frame=FALSE)
+qqline(data$cols_with_1, col = "steelblue", lwd=2)
+
+```
+
+
+Fig(2) rows_with_1 : The density is low which is expected, any symbol which contains a curve would count at least 2 pixels in the row so the only symbols which could be represented here are tail ended letters such as b ,f ,j , e, and the eyes in the faces.There appears to be a right skew present. The data is poorly fitted to the distribution line in the qq-plot. 
+
+##Cols_with1p(Columns with 1 pixel)
+```{r }
+p2
+
+qqnorm(data$cols_with_3p, pch=1, frame=FALSE)
+qqline(data$cols_with_3p, col = "steelblue", lwd=2)
+
+```
+
+
+Fig(3) cols_with_1 : The density is low, which is expected. In addition to the exclusion listed in Fig(2) there is also an overlap which would negate the tail ended letters, curve letters, faces and exclamation marks. there is only a few possible cases where we can see cols_with_1 such as open ended curves, the letter "j" and overly wide mouths.Also similar to Fig(2) it is skewed right but more fitted to the distribution line.
+
+##Rows_with3p(Rows with 3 or more pixels)
+```{r }
+p3
+
+qqnorm(data$row_with_1, pch=1, frame=FALSE)
+qqline(data$row_with_1, col = "steelblue", lwd=2)
+
+```
+
+
+Fig(4) rows_with_3p: The density is consistently spread across all symbols which is expected. If we examine the graph we see 2 spikes meaning it is bimodal, where if we go back to Fig(1) we discussed how tail end letters would be included such as h,k,l,j,i which accounts for this dip. The data is fitted loosely to the distribution line expect for a small portion.
+
+##Cols_with3p(Columns with 3 or more pixels)
+```{r }
+p4
+
+
+qqnorm(data$rows_with_3p, pch=1, frame=FALSE)
+qqline(data$rows_with_3p, col = "steelblue", lwd=2)
+
+```
+
+
+Fig(5)  cols_with_3p : Similarly to Fig(4) we notice an even spread, however it is skewed to the right and drops off. The explanation for this being the exclamation mark has at most 1-3 columns so would only be able to have at most a small spread compared to the wideness achieved by the other symbols.This is more fitted to the density line compared to fig(4)
+
+##Aspect_ratio
+```{r}
+p5
+
+qqnorm(data$aspect_ratio, pch=1, frame=FALSE)
+qqline(data$aspect_ratio, col = "steelblue", lwd=2)
+```
+
+
+Fig(6) aspect_ratio: For this we expected a curve which was dense but level. Aspect ratio measures the relationship between width and height. From this we see that most symbols have an almost consistent ratio meaning it is square like in shape roughly such as a, c, e, faces and exclamation points. This is relatively normally distributed to the Q-Q plot. 
+
+
+## Section 3.2
+In Section 3.2 We use summary statistics, particularly mean, median, range and interquartile range. After we explore the averages, we look to explore the standard deviation. For this we split the data into two sets: "data_letters" and "data_nonletters" and examine them below using the table. We will examine the tables individually before we compare and contrast. Next We explore the standard deviation, Standard deviation is  a statistic that measures the dispersion of a dataset relative to its mean. Below is the formulaic equation.
+\begin{equation}
+s = \sqrt\frac{\sum{(x_i-\bar{x})^2}}{n-1}
+\end{equation}
+*s* = Sample S.D.
+$x_i$ = individual value
+$\bar{x}$ = Sample mean
+n = Sample size 
+
+If the data points are further from the mean, there is a higher deviation within the data set; thus, the more spread out the data, the higher the standard deviation. A standard deviation close to zero indicates that data points are close to the mean, whereas a high or low standard deviation indicates data points are respectively above or below the mean.
+
+```{r}
+kable(output_letters_3.2,capation = "Statsical analysis into letters ")
+kable(output_nonletters_3.2,capation = "Statsical analysis into letters ")
+
+```
+
+---------------Letters ---------------
+
+When studying our tables I have moved from left to right as if it is normally distributed to be able to view the boundaries. we notice trends emerging within the data set. One noticeable example is the similarity between the mean and median values which suggests our data is symmetrically distributed. It is interesting to see the difference in values <1, <2 and >2.
+With the majority being less than 1, these results seem like valuable features for symbol analysis as it has lower differences but overall a great distinguishable feature if our data was thrown into a set of new random images. 
+We can however only choose which features are valuable in identification when we compare it against non_letter data. 
+
+
+For the interquartile range of an observation variable is the difference of its upper and lower quartiles. It is a measure of how far apart the middle portion of data spreads in value.
+Within this inter-quartile range, favorable data occurs with lower results. We can discount nr_pix because the data is dense and would produce a large inter-quartile range. What is interesting is the low inter-quartile ranges for both rows and columns that have 1 pixel. I expected it to have a larger inter quartile range. I suspect along with the range calculation of the group that this is wrong and rule them both out in this analysis.
+
+Overall I am happy with the leading on the mean and median values with guidance from the range and inter-quartile range.
+
+
+---------------Standard deviation---------------
+
+From the below set of letters, I have noticed 3 values <1  which are cols_with1,cols_with3p,no_neigh_vert.This is suprising and a correlation is present between data collected and organised via inspection of pixels in columns. 
+This is also present in non_letters too,both aspect ratio has a low standard deviation also.
+
+
+---------------Non-Letters---------------
+
+Next We examine the summary statistics in the non_letter subset which contains the faces and exclamation marks.
+We notice that the difference between median and mean here is not consistent and is more present being >1. We meet a lot more zero values here this means that if the right features are selected they are not applicable for any of the summery analysis therefore being a favorable marker.
+
+---------------Features --------------- 
+
+Particularly 3 features met all of the desirable criteria outlined above,this was row_with_1,rows_with3p and no_neigh_above.
+
+---------------Row_with_1---------------
+
+I selected this one due to the favorable closeness of mean and median but more the fact it presents 0 for 4 categories compared to only 1 in letters.
+
+---------------Rows_with_3p---------------
+
+Noticeably in my standard deviation particularly low results were any row analysis I pair this with also the consistent data presented from the summary statistics 
+
+---------------no_neigh_vert ---------------
+
+This feature discriminates letters from non-letters as all non-letters have an overhead pixel this is supported by the summery statistics and nice whole numbers 
+
+
+
+####Section 3.2 graphs 
+
+---------------Legend --------------- 
+Pink line = Letters
+Green line = non letters
+black = entrire set 
+```{r, include= FALSE}
+dataFeature= data
+
+dataFeature$letter = 0
+for( i in (1:80)){
+  dataFeature[i,14] = 1
+}
+
+# Histogram:
+  geom_histogram(color="black", fill="white",binwidth = 2)
+ f1<-ggplot(dataFeature, aes(x=row_with_1)) + 
+ geom_histogram(aes(y=..density..), colour="black",fill="white")+
+ geom_density(alpha=.2, fill="#D16A76")  +  
+  stat_function(fun = dnorm, args = list(mean = mean(data$row_with_1), sd = sd(data$row_with_1)))+
+   stat_function(fun = dnorm, args = list(mean = mean(data_letters$row_with_1), sd = sd(data_letters$row_with_1)),colour = "pink")+
+   stat_function(fun = dnorm, args = list(mean = mean(data_nonletters$row_with_1), sd = sd(data_nonletters$row_with_1)),colour = "green")
+
+
+
+f1
+
+
+# prepare the data
+letters_row_with1 <- data_letters$row_with_1
+nonletters_row_with1 <- data_nonletters$row_with_1
+
+
+
+```
+```{r}
+f1
+ boxplot(letters_row_with1, nonletters_row_with1, 
+        main = "Letters and non letters: Number of rows with 1 pixel",
+        at = c(1,2),
+        names = c("letters", "non-letters"),
+        las = 2,
+        col = c("orange","lightblue"),
+        border = "brown",
+        horizontal = TRUE,
+        notch = FALSE)
+```
+fig(7) 
+As seen above there appears to be a higher density of non_letters, then it drops off and is not present. We see a small slight rise in letters. This could be useful when we distinguish the boundary and use it for classification. The box plot shows us that non letters are very contained and there is little overlap with letters data. Therefore, this was a successful choice.
+```{r}
+
+geom_histogram(color="black", fill="white",binwidth = 2)
+ f2<-ggplot(dataFeature, aes(x=rows_with_3p)) + 
+ geom_histogram(aes(y=..density..), colour="black",fill="white")+
+ geom_density(alpha=.2, fill="#D16A76")  +  
+  stat_function(fun = dnorm, args = list(mean = mean(data$rows_with_3p), sd = sd(data$rows_with_3p)))+
+   stat_function(fun = dnorm, args = list(mean = mean(data_letters$rows_with_3p), sd = sd(data_letters$rows_with_3p)),colour = "pink")+
+   stat_function(fun = dnorm, args = list(mean = mean(data_nonletters$rows_with_3p), sd = sd(data_nonletters$rows_with_3p)),colour = "green")
+
+
+
+f2
+
+
+# prepare the data
+letters_rows_with_3p <- data_letters$rows_with_3p
+nonletters_rows_with_3p <- data_nonletters$rows_with_3p
+
+# box plot to compare the number of diagonals data
+boxplot(letters_rows_with_3p, nonletters_rows_with_3p, 
+        main = "Letters and non letters: Rows with 3 or more black pixels",
+        at = c(1,2),
+        names = c("letters", "non-letters"),
+        las = 2,
+        col = c("orange","lightblue"),
+        border = "brown",
+        horizontal = TRUE,
+        notch = FALSE
+) 
+
+```
+Fig(8)
+The black line suggests that when combined both data sets produce a normal distribution, however when separated they are unimodal which is helpful for separation between the two sets. From the box plot we see no overlap of data from the mean and where most of the data is equally distributed does not overlap.
+```{r}
+
+geom_histogram(color="black", fill="white",binwidth = 2)
+ f3<-ggplot(dataFeature, aes(x=no_neigh_vert)) + 
+ geom_histogram(aes(y=..density..), colour="black",fill="white")+
+ geom_density(alpha=.2, fill="#D16A76")  +  
+  stat_function(fun = dnorm, args = list(mean = mean(data$no_neigh_vert), sd = sd(data$no_neigh_vert)))+
+   stat_function(fun = dnorm, args = list(mean = mean(data_letters$no_neigh_vert), sd = sd(data_letters$no_neigh_vert)),colour = "pink")+
+   stat_function(fun = dnorm, args = list(mean = mean(data_nonletters$no_neigh_vert), sd = sd(data_nonletters$no_neigh_vert)),colour = "green")
+
+
+
+f3
+
+
+# prepare the data
+letters_no_neigh_vert<- data_letters$no_neigh_vert
+nonletters_no_neigh_vert <- data_nonletters$no_neigh_vert
+
+# box plot to compare the number of diagonals data
+boxplot(letters_no_neigh_vert, nonletters_no_neigh_vert, 
+        main = "Letters and non letters: Black pixels with no overhead pixels",
+        at = c(1,2),
+        names = c("letters", "non-letters"),
+        las = 2,
+        col = c("orange","lightblue"),
+        border = "brown",
+        horizontal = TRUE,
+        notch = FALSE
+) 
+
+
+
+```
+Fig(9)
+When examining the no_neigh_vert histogram it provides no usable analysis. Both data sets are close to each other and the mean. The only use of this feature is if another data set completely different is thrown in, then used to separate the two. In the boxplot there is an overlap of the data spread and the end of letters seems to be too close to the mean of non_letters meaning 1/2 of the data is mixed in.
+
+
+#### Section 3.3
+
+--------------- Introduction--------------- 
+
+ The p-values given by the t-tests will determine whether there is a difference in the true population means between letters and non-letters of each feature. This will help us determine whether a feature will be useful to distinguish between a letter and a non-letter. Using this T statistic we can then workout the P value using the formula below .
+ 
+ \begin{equation}
+t = \frac{m-\mu}{s/ \sqrt n}
+\end{equation}
+t =  T-test 
+$m$ = mean
+$\mu$ = theoretical value 
+s = Standard deviation 
+n = variable set size
+
+For these t-tests We assume the conditions for inference are met, meaning a  random sample and variables are independent. 
+
+--------------- Hypothesis testing ---------------  
+
+Our null hypothesis will be that for each feature, there will be no difference in their population means. 
+
+Our alternative hypothesis will be that the mean of the features will differ between letters and non-letters. We follow first on the assumption of the null hypothesis until proven different, where the significance level will be 0.05 for 95% confidence. where pval is the original p value and pval1 is the p-value logged to base 10 
+```{r, include = FALSE}
+data$letter = 0
+for( i in (1:80)){
+  data[i,15] = 1
+}
+
+
+output_t = NULL
+
+for(i in (3:15)){
+  data1 = data_letters[i]
+  data2 = data_nonletters[i]
+  t = t.test(data1,data2,var.equal=TRUE)
+  
+  feature_name = names(data_letters)[i]
+  
+  pval = t$p.value
+  pval1 = log(pval)
+  
+  add_row = c(feature_name,pval,pval1)
+   
+  output_t = data.frame(rbind(output_t,add_row))
+  
+}
+  
+rownames(output_t) = c()
+colnames(output_t) = (c("feature_name", "pval","pval1" ))
+
+
+
+sorted_pval = output_t[order(output_t[,1]),]
+
+```
+```{r}
+kable(output_t,capation = "Statsical analysis using t-tests")
+```
+
+--------------- P values --------------- 
+
+The  lowest P-Values are cols_with1 ,no_neigh_below,eyes. The low P value indicates a low chance that the sample means are different by chance alone, meaning that there is a high chance that the true population means are different. As the P values for these 3 features   below our significance level of 0.05, we have enough evidence to suggests that we can reject the null hypothesis. Which suggest that the alternative hypothesis is accepted, that the population means are not the same. This will be true for all the features except no_neigh_right,no_neigh_horiz. but I will be considering the top 3 features. 
+Since the population means are determined to be different it is implied that they can be useful in distinguishing between letters and non-letters.
+Upon reading more material I realized that a pre requisite of t-tests is that the data is not extremely skewed, I can relate to my histograms for section 3.1 fig(1-6) to examine skew. "My eyes" contain Nan which affects the skew so I will have to discount that feature, "cols" with one is skewed but not past the 1 variable for most of its data so is accepted and no_neigh_below is accepted from calculations done to calculate the skew on a qq-plot.
+
+--------------- Selection ---------------  
+
+In conclusion, the 3 with the lowest valid P Values are, cols_with1, no_neigh_below and rows_with3p, 1 of which I have chosen in the previous section to be likely candidates for the most useful features.
+
+##Section 3.4 
+```{r, i}
+# Correlation plot with circles:
+library(corrplot)
+# correlation plot with circles
+correlations <- cor(data[,3:15])
+corrplot(correlations, method="circle")
+corr = round(cor(data[,3:15]),1)
+kable(corr,capation = "Correlation analysis ")
+
+```
+
+ The table above along withe the correlation plot shows the correlation between 2 features in all possible combinations. We only need to examine either above or below the diagonal center line as the data is repeated. Observing the table we can see that the 3 highest correlation values are:
+ 
+ ---------------  Results of top 3 ---------------  
+ 
+ 
+rows_with_3p x nrpix @0.9
+no_neigh_horiz x no_neigh_vert@0.9
+no_neigh_right x no_neigh_above @ 0.9 
+I will graphically explore this 3 features.
+
+```{r}
+ 
+cor.test(data$nr_pix, data$rows_with_3p)
+ggplot(mapping = aes(x = data$rows_with_3p, y = data$nr_pix)) +labs(title="rows_with_3p x nrpixs", x = "rows_with_3p", y = "nrpix" )  +
+  geom_point(alpha = 0.5) 
+geom_smooth(method = "lm", se = FALSE, color = "red")
+  
+```
+
+fig(10)
+Number of pixels has strong linear correlations with rows_with_3p. This is evident due to the definitions of those features. As there are more rows with 3 or more black pixels as does the number of black pixels in the image increase.The linear correlation is positive and well fitted.
+
+```{r}
+
+cor.test(data$cols_with_3p, data$rows_with_3p)
+ggplot(mapping = aes(x = data$rows_with_3p, y = data$cols_with_3p)) +labs(title="no_neigh_horiz x no_neigh_vert @0.9", x = "no_neigh_horiz", y = "no_neigh_vert" )  +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "red")
+```
+
+fig(11)
+Here there appears to be a weak positive correlation,the data points are not clustered and appear both above and below the line.
+```{r}
+# rows_with_3p and nr_pix = 0.9
+# no_neigh_above and no_neigh_below = 0.919
+cor.test(data$no_neigh_below, data$no_neigh_above)
+ggplot(mapping = aes(x = data$no_neigh_above, y = data$no_neigh_below)) +labs(title="Number of Pixels with no above neighbours vs Number of Pixels with no below neighbours", x = "No neighbours above", y = "No neighbours below" )  +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "red")
+```
+fig(12)
+Our first negative correlation is presented, there appears to be a few outliers in the data set but it is strongly correlated.
+
+
+
+
+
+
+
+
+
+##Section 4
+In this section I will be exploring  the implementation regression models and machine learning on the data set’s features.
+####Section 4.1 
+To predict the aspect_ratio feature on an image I will fit a multiple regression model  I will be using the p-value approach in order to select the features I would like to include in my regression model. 
+
+This means that I will start with a model containing all the features and I will be removing the feature that has the highest p-value and refit a smaller model. I will repeat this until all features included in the model are significant.
+
+```{r}
+library(MASS)
+model = lm(aspect_ratio~nr_pix + row_with_1 + cols_with_1 + cols_with_3p + rows_with_3p + no_neigh_above + no_neigh_below + no_neigh_left + no_neigh_right + no_neigh_horiz + no_neigh_vert , data=data)
+
+multi_model = stepAIC(model,direction="backward")
+
+summary(multi_model)
+
+```
+DISCUSS 
+####Section 4.2
+
+
+
+```{r}
+data2 = data
+
+data2$letter = 0
+for( i in (1:80)){
+  data2[i,15] = 1
+}
+
+# randomly shuffle rows:
+data_shuffled = data2[sample(nrow(data)),]
+
+# first 80% will be training data
+training_data = data_shuffled[1:120,]
+test_data = data_shuffled[121:140,]
+
+# plot a histogram: for letter
+plt <- ggplot(training_data, aes(x=no_neigh_vert, fill=as.factor(letter))) +
+  geom_histogram(binwidth=0.5, alpha=.5, position='identity')
+plt 
+
+# logistical regression model
+
+glmfit<-glm(letter ~ no_neigh_vert, 
+            data = training_data, 
+            family = 'binomial') 
+summary(glmfit)
+
+glmfit$coefficients
+
+beta0 = as.numeric(glmfit$coefficients[1])
+beta1 = as.numeric(glmfit$coefficients[2])
+
+
+
+linear_combo = beta0 + beta1*1
+
+estimated_probability = exp(linear_combo)/(1+exp(linear_combo))
+
+
+newdata = as.data.frame(c(2,1,5)) 
+colnames(newdata) = 'no_neigh_vert'
+
+predicted = predict(glmfit, newdata, type="response")
+
+abs(estimated_probability-predicted)
+
+x.range = range(training_data[["no_neigh_vert"]])
+
+x.values = seq(x.range[1],x.range[2],length.out=1000)
+
+# plots the graph 
+fitted.curve <- data.frame(no_neigh_vert = x.values)
+summary(fitted.curve)
+fitted.curve[["letter"]] = predict(glmfit, fitted.curve, type="response")
+
+##
+# Plot the training data and the fitted curve:
+plt <-ggplot(training_data, aes(x=no_neigh_vert, y=letter)) + 
+  geom_point(aes(colour = factor(letter)), 
+             show.legend = T)+
+  geom_line(data=fitted.curve, colour="orange", size=1)
+
+plt
+
+
+#  Calculating the accuracy on the training data, assuming a p>0.5 cut-off
+##########################################################################
+
+training_data[["predicted_val"]] = predict(glmfit, training_data, type="response")
+training_data[["predicted_class"]] = 0
+training_data[["predicted_class"]][training_data[["predicted_val"]] > 0.5] = 1
+
+correct_items = training_data[["predicted_class"]] == training_data[["letter"]] 
+# proportion correct:
+print(paste("Percentage of Values correct for training data: ",nrow(training_data[correct_items,])/nrow(training_data)))
+
+# proportion incorrect:
+print(paste("Percentage of Values incorrect for training data: ",nrow(training_data[!correct_items,])/nrow(training_data)))
+
+
+
+#  Calculating the accuracy on the test data, assuming a p>0.5 cut-off
+##########################################################################
+
+test_data[["predicted_val"]] = predict(glmfit, test_data, type="response")
+test_data[["predicted_class"]] = 0
+test_data[["predicted_class"]][test_data[["predicted_val"]] > 0.5] = 1
+
+correct_items = test_data[["predicted_class"]] == test_data[["letter"]] 
+
+# proportion correct:
+print(paste("Percentage of Values correct for testing data: ", nrow(test_data[correct_items,])/nrow(test_data)))
+
+# proportion incorrect:
+print(paste("Percentage of Values incorrect for testing data: ",nrow(test_data[!correct_items,])/nrow(test_data)))
+
+```
+
+ 
+As shown in the summary above, the most significant features to predict the feature of 'aspect_ratio' include: 'nr_pix', 'rows_with_1', 'cols_with_1', 'rows_with_3p', 'cols_with_3p', 'no_neigh_above', 'no_neigh_below', 'no_neigh_left', 'no_neigh_right', 'no_neigh_horiz' and 'no_neigh_vert'.
+
+As the R squared value is 0.9081, we can say the model has improved from removing the other features. It may be beneficial in this model to also remove the 'no_neigh_above' and "eyes". 
+
+##4.2 
+## Section 4.2
+ I have decided to look at logistical regression for the feature of rows_with3p. as it has a low pvalue. Running through other features it produces the highest rate of 0.84.
+
+
+
+```{r include=FALSE}
+
+data2 = data
+
+data2$letter = 0
+for( i in (1:80)){
+  data2[i,15] = 1
+}
+
+# randomly shuffle rows:
+data_shuffled = data2[sample(nrow(data)),]
+
+# first 80% will be training data
+training_data = data_shuffled[1:120,]
+test_data = data_shuffled[121:140,]
+
+# plot a histogram: for letter
+plt1 <- ggplot(training_data, aes(x=eyes, fill=as.factor(letter))) +
+  geom_histogram(binwidth=0.5, alpha=.5, position='identity')
+plt1 
+
+# logistical regression model
+
+glmfit<-glm(letter ~ rows_with_3p, 
+            data = training_data, 
+            family = 'binomial') 
+summary(glmfit)
+
+glmfit$coefficients
+
+beta0 = as.numeric(glmfit$coefficients[1])
+beta1 = as.numeric(glmfit$coefficients[2])
+
+
+
+
+linear_combo = beta0 + beta1*1
+
+estimated_probability = exp(linear_combo)/(1+exp(linear_combo))
+
+
+newdata = as.data.frame(c(2,1,5)) 
+colnames(newdata) = 'rows_with_3p'
+
+predicted = predict(glmfit, newdata, type="response")
+
+abs(estimated_probability-predicted)
+
+x.range = range(training_data[["rows_with_3p"]])
+
+x.values = seq(x.range[1],x.range[2],length.out=1000)
+
+# plots the graph 
+fitted.curve <- data.frame(rows_with_3p = x.values)
+summary(fitted.curve)
+fitted.curve[["letter"]] = predict(glmfit, fitted.curve, type="response")
+
+##
+# Plot the training data and the fitted curve:
+plt <-ggplot(training_data, aes(x=rowsWith3p, y=letter)) + 
+  geom_point(aes(colour = factor(letter)), 
+             show.legend = T)+
+  geom_line(data=fitted.curve, colour="orange", size=1)
+
+plt
+
+
+#  Calculating the accuracy on the training data, assuming a p>0.5 cut-off
+##########################################################################
+
+training_data[["predicted_val"]] = predict(glmfit, training_data, type="response")
+training_data[["predicted_class"]] = 0
+training_data[["predicted_class"]][training_data[["predicted_val"]] > 0.5] = 1
+
+correct_items = training_data[["predicted_class"]] == training_data[["letter"]] 
+# proportion correct:
+print(paste("Percentage of Values correct for training data: ",nrow(training_data[correct_items,])/nrow(training_data)))
+
+# proportion incorrect:
+print(paste("Percentage of Values incorrect for training data: ",nrow(training_data[!correct_items,])/nrow(training_data)))
+
+
+
+#  Calculating the accuracy on the test data, assuming a p>0.5 cut-off
+##########################################################################
+
+test_data[["predicted_val"]] = predict(glmfit, test_data, type="response")
+test_data[["predicted_class"]] = 0
+test_data[["predicted_class"]][test_data[["predicted_val"]] > 0.5] = 1
+
+correct_items = test_data[["predicted_class"]] == test_data[["letter"]] 
+
+# proportion correct:
+print(paste("Percentage of Values correct for testing data: ", nrow(test_data[correct_items,])/nrow(test_data)))
+
+# proportion incorrect:
+print(paste("Percentage of Values incorrect for testing data: ",nrow(test_data[!correct_items,])/nrow(test_data)))
+
+```
+```{r}
+plt1
+```
+
+
+## Section 4.3
+The table below shows the total number of letters, faces and exclamation marks with values for nr_pixels (split1), aspect_ratio(split2) and rows_with_3p(split3) which are greater than the median value for that feature for that class for their class.
+
+```{r include=FALSE}
+output = NULL
+
+# 80 letters
+letters = head(data,80)   
+# 40 faces
+faces = head(data_nonletters,40)
+# 20 xclaims
+xclaim = tail(data,20)
+
+# letters
+# counts number of values for letters with aspect ratio > median
+split1 = sum(letters$nr_pix > median(letters$nr_pix))
+split2 = sum(letters$aspect_ratio > median(letters$aspect_ratio))
+split3 = sum(letters$rows_with_3p > median(letters$rows_with_3p))
+
+add_row = c(split1,split2,split3)
+output = rbind(output,add_row)
+
+# faces
+# counts number of values for letters with aspect ratio > median
+split1 = sum(faces$nr_pix > median(faces$nr_pix))
+split2 = sum(faces$aspect_ratio > median(faces$aspect_ratio))
+split3 = sum(faces$rows_with_3p > median(faces$rows_with_3p))
+
+add_row = c(split1,split2,split3)
+output = rbind(output,add_row)
+
+# xclaim
+# counts number of values for letters with aspect ratio > median
+split1 = sum(xclaim$nr_pix > median(xclaim$nr_pix))
+split2 = sum(xclaim$aspect_ratio > median(xclaim$aspect_ratio))
+split3 = sum(xclaim$rows_with_3p > median(xclaim$rows_with_3p))
+
+add_row = c(split1,split2,split3)
+output = rbind(output,add_row)
+
+colnames(output) = c("Split1","Split2","Split3")
+rownames(output) = c("Letters","Faces","Exclamation Marks")
+
+output
+```
+```{r}
+kable(output, capation = "Categorical Median Splits")
+```
+Above is a table for each category, Which has a feature greater than the median. It is interesting to note the particular low numbers as the set contains 80 letters, 40 faced and 20 exclamation marks. Split 1 predicts under and on half for the categories whereas it never goes above the half line which is preferable.
+
+## Section 4.4
+Naive Bayes Theorem is used to  order and  categorize the images into letters and non-letters user the table produced above. This is done  by using probabilities of certain features in a formula. each feature is independent which is where the name “Naive” Bayes originates.
+
+
+
+
+```{r}
+# Naive Bayes
+
+num_images = 140
+# 80 letters
+num_letters = 80
+# 40 faces
+num_faces = 40
+# 20 xclaims
+num_xclaims = 20
+
+
+# table from 4.3 is : output
+
+# SPLIT1 = 1, SPLIT2 = 1, SPLIT3 = 1
+
+# p(split1=1 | class = letter) = 36/80
+split1_letter = output[1,1]/num_letters
+# p(split1=1 | class = face) = 17/40
+split1_faces = output[2,1]/num_faces
+# p(split1=1 | class = xclaim) = 9/20
+split1_xclaims = output[3,1]/num_xclaims
+
+# p(split2=1 | class = letter) = 40/80
+split2_letter = output[1,2]/num_letters
+# p(split2=1 | class = face) = 16/40
+split2_faces = output[2,2]/num_faces
+# p(split2=1 | class = xclaim) = 10/20
+split2_xclaims = output[3,2]/num_xclaims
+
+# p(split3=1 | class = letter) = 17/80
+split3_letter = output[1,3]/num_letters
+# p(split3=1 | class = face) = 17/40
+split3_faces = output[2,3]/num_faces
+# p(split3=1 | class = xclaim) = 0/20
+split3_xclaims = output[3,3]/num_xclaims
+
+# if letter
+# p(split1,split2,split3 | class = letter)*p(class=letter) = 0.027321
+prob1_letter = split1_letter * split2_letter * split3_letter * (num_letters/num_images)
+
+# p(split1,split2,split3 | class = face)*p(class=face) = 0.02064285714
+prob1_face = split1_faces * split2_faces * split3_faces * (num_faces/num_images)
+
+# p(split1,split2,split3 | class = xclaim)*p(class=xclaim) = 0
+prob1_xclaims = split1_xclaims * split2_xclaims * split3_xclaims * (num_xclaims/num_images)
+
+# hence is split1=1, split2 =1 and split3=1 the predicted class will be a letter
+table_predict1 = NULL
+table_predict1 = rbind(table_predict1,prob1_letter,prob1_face,prob1_xclaims)
+
+as.matrix(table_predict1[order(-table_predict1[,1]),])
+title = names(table_predict1[1,1])
+
+if(grepl("letter", title, fixed=TRUE)){
+  print("The predicted class for when split1=1, split2=1 and split3=1 is: Letter")
+} else if(grepl("faces",title,  fixed=TRUE)){
+  print("The predicted class for when split1=1, split2=1 and split3=1 is: Face")
+} else if(grepl("xclaim",title,  fixed=TRUE)){
+  print("The predicted class for when split1=1, split2=1 and split3=1 is: Exclamation Mark")
+}
+```
+```{r}
+# SPLIT1 = 0, SPLIT2 = 0, SPLIT3 = 0
+
+# p(split1=1 | class = letter) = 44/80
+split1_letter = (1-(output[1,1]/num_letters))
+# p(split1=1 | class = face) = 23/40
+split1_faces = (1-(output[2,1]/num_faces))
+# p(split1=1 | class = xclaim) = 11/20
+split1_xclaims = (1-(output[3,1]/num_xclaims))
+
+# p(split2=1 | class = letter) = 40/80
+split2_letter = (1-(output[1,2]/num_letters))
+# p(split2=1 | class = face) = 24/40
+split2_faces = (1-(output[2,2]/num_faces))
+# p(split2=1 | class = xclaim) = 10/20
+split2_xclaims = (1-(output[3,2]/num_xclaims))
+
+# p(split3=1 | class = letter) = 63/80
+split3_letter = (1-(output[1,3]/num_letters))
+# p(split3=1 | class = face) = 23/40
+split3_faces = (1-(output[2,3]/num_faces))
+# p(split3=1 | class = xclaim) = 20/20
+split3_xclaims = (1-(output[3,3]/num_xclaims))
+
+# if letter
+# p(split1,split2,split3 | class = letter)*p(class=letter) = 0.027321
+prob1_letter = split1_letter * split2_letter * split3_letter * (num_letters/num_images)
+
+# p(split1,split2,split3 | class = face)*p(class=face) = 0.02064285714
+prob1_face = split1_faces * split2_faces * split3_faces * (num_faces/num_images)
+
+# p(split1,split2,split3 | class = xclaim)*p(class=xclaim) = 0
+prob1_xclaims = split1_xclaims * split2_xclaims * split3_xclaims * (num_xclaims/num_images)
+
+# hence is split1=0, split2 =0 and split3=0 the predicted class will be a letter
+table_predict1 = NULL
+table_predict1 = rbind(table_predict1,prob1_letter,prob1_face,prob1_xclaims)
+
+as.matrix(table_predict1[order(-table_predict1[,1]),])
+title = names(table_predict1[1,1])
+
+
+if(grepl("letter", title, fixed=TRUE)){
+  print("The predicted class for when split1=0, split2=0 and split3=0 is: Letter")
+} else if(grepl("faces",title,  fixed=TRUE)){
+  print("The predicted class for when split1=0, split2=0 and split3=0 is: Face")
+} else if(grepl("xclaim",title,  fixed=TRUE)){
+  print("The predicted class for when split1=0, split2=0 and split3=0 is: Exclamation Mark")
+}
+```
+I have chosen to include my code as it is more like a proof and explains each step.
+
+The Naive Bayes Classifier is how likely an image is to be classified.
+
+The results for the split features = 0,0,0 was not surprising at all. It seemed to predict the image category which has the highest number of the corresponding values. For example the category with the most amount of zeros across all the images which was the exclamation mark. This model will not be too accurate as it assumes the features are completely independent as seen above in 3.2 the features have a lot in common.
+
+Conclusion 
+
+
+Overall, I enjoyed this project as I have a love for Maths. At every point in my journey I made mistakes or learnt how to code something more efficiently with practice. 
+
+During this project I have learnt a range of statistical  techniques and regression models.I have completed my first  R project and  what  application to statistics AI & ML have.
+
+At the end of this project I was able to determine if features were useful in determining the class of the image and even fit models to predict the class of the image using linear regression, logistical regression and Naive Bayes Classifier of a success rate of ~90% 
+
+
+Websites used for coding help and influence:
+
+https://www.statmethods.net/graphs/bar.html
+https://biostats.w.uib.no/creating-a-circular-bar-chart/
+https://www.programmingr.com/tutorial/log-in-r/#:~:text=Log%20transformation%20in%20R%20is,logarithm%20to%20a%200%20value.
+https://r-graph-gallery.com/web-circular-barplot-with-R-and-ggplot2.html
+https://stackoverflow.com/questions/27661852/adding-a-density-line-to-a-histogram-with-count-data-in-ggplot2
+https://www.google.com/search?q=latex+cheat+sheet+math&sxsrf=APq-WBu-iesg5ccD7bPFWApa72Xfl_cAuQ:1647730935367&source=lnms&tbm=isch&sa=X&sqi=2&ved=2ahUKEwjc4dmIpNP2AhVMA94KHcBVAc8Q_AUoAXoECAEQAw&biw=1536&bih=722&dpr=1.25#imgrc=ArlgSzCEDPpfjM
+https://bookdown.org/ndphillips/YaRrr/dataframe-column-names.html
+https://stackoverflow.com/questions/50584209/number-of-rows-of-result-is-not-a-multiple-of-vector-length-arg-2-in-r
+https://www.datanovia.com/en/blog/how-to-create-a-bubble-chart-in-r-using-ggplot2/
+https://www.r-graph-gallery.com/correlogram.html
+https://cloud.google.com/blog/products/data-analytics/different-types-graphs-charts-uses
+https://wordcounter.net/
+https://tex.stackexchange.com/questions/456051/standard-deviation
+https://www.nlm.nih.gov/nichsr/stats_tutorial/section2/mod8_sd.html
+https://r-lang.com/how-to-calculate-standard-deviation-in-r-using-sd/#:~:text=To%20calculate%20the%20standard%20deviation,values%20provided%20in%20the%20object.
+https://towardsdatascience.com/q-q-plots-explained-5aa8495426c0
+
+
+and lecture notes from class 
+
+
+
+
+
