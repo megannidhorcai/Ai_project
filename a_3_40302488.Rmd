@@ -1,0 +1,665 @@
+---
+title: 'Assignment 3: Machine Learning'
+author: "M.D'Arcy 40302488"
+output:
+  pdf_document: 
+       includes: 
+         in_header: "preamble.tex"
+  html_notebook:
+    df_print: paged
+  html_document:
+    df_print: paged
+---
+## Abstract 
+This report builds on assignment 2 using its feature classification,we will in this report examine methods of machine learning to solve classification problems.
+classifiers will be fit and evaluated for our image data in order to see whether the models can predict the class labels for unseen images.
+
+
+
+
+```{r , include=FALSE}
+library(tinytex)
+library(rmarkdown)
+#Directory 
+getwd()
+setwd("C:/Users/megan/OneDrive/Desktop/a3_40302488")
+
+#Data set 
+data <- read.csv("40302488_features.csv", header = TRUE, sep = ",")
+colnames(data) <- c("label", "index", "nr_pix", "row_with_1","cols_with_1", "rows_with_3p", "cols_with_3p", "aspect_ratio","no_neigh_left", "no_neigh_right","no_neigh_above","no_neigh_below","no_neigh_vert","no_neigh_horiz","eyes")
+
+# Create new categorical variable
+
+
+data$label  <- as.factor(data$label)
+data$is.letter <- "yes"
+data$is.letter[data$label %in% c("sad", "smiley", "xlaim")] <- "no"
+data$is.letter <- as.factor(data$is.letter)
+data$multiLetter2 = as.numeric(data$is.letter == "yes")
+
+
+```
+
+## Section 1 Introduction 
+We first split the data into a training and test set,We randomly shuffle our data and split in the ratio 80:20, as seen below in the table. The focus will be on NR_pix which counts the number of black pixels in the image and aspect ratio which computes width/height of pixels in the image. 
+A logistic regression model is fit for the combination of aspect_ratio and NR_pix under binomial.
+
+Using our summary statistics we can see the following:
+
+Our deviance residuals can be used to check the model fit at each observation for generalized linear models. We see our model fits well in the 1st to third quartile and well at the median at 0.1299. We can use the error rate of >1 to conclude that our min and max are outliers and not fit well to out model.
+
+Our standard deviation is low with NR_pix at -0.20195 but high with aspect_ratio causing a high intercept value of 9.9278.
+
+However we have attractive  low z values and extremely low p-values of <0.01 suggesting our model to be accurate and accepted.
+
+ For our null deviance and residual deviance;These results are somehow reassuring. First, the null deviance is low, which means it makes sense to use more than a single parameter for fitting the model. Second, the residual deviance is relatively low, which indicates that the log likelihood of our model is close to the log likelihood of the saturated model.
+ 
+ However, for a well-fitting model, the residual deviance should be close to the degrees of freedom (74), which is not the case here. For example, this could be a result of over dispersion where the variation is greater than predicted by the model. This can happen for a Poisson model when the actual variance exceeds the assumed mean.
+ 
+ The Akaike information criterion (AIC) is an information-theoretic measure that describes the quality of a model. A model with a low AIC is characterized by low complexity  and a good fit. With a relatively low AIC it is accepted.
+ 
+ The information about Fisher scoring iterations is just verbose output of iterative weighted least squares. A high number of iterations may be a cause for concern indicating that the algorithm is not converging properly the low outcome of 6 means our algorithm is working.
+ 
+ Next we plot a fitted curve to inspect the data.
+ we compare this with our new data column of is.letter to check whether the two feature are similar to the results of the letter data set.
+ We have similar Max values along with our mean and median which means these two features indicate letter well.
+ 
+ I plot these two to examine the training data with the fitted curve. Th graph shows the 3 distinct categories of our is.letter data set.The shaded area around the line is the 95% confidence interval. We see on the legend that it is almost distinct of 20 in the difference between the categories with no overlap suggesting that the use of both aspect_ratio and NR_pix together act as classifiers that do not overlap their classification purposes.
+ 
+ 
+ 
+Next we use our training data and check how well we can classify the is.letter data for letters. We have a 0.901 accuracy for predicating the right category and a 0.098 incorrect proportion rate. These results suggest an error rate of less than a 1% which is highly accurate.
+
+We also test the training data set,Where we have a 100% accuracy rate.At first I contributed down to a mistake I had made but upon printing out the set and examining by hand a 1005 accuracy was confirmed.This could be due to the fact the test data being only 20% a large number such as our training data would suggest a lower accuracy,another factor is the randomness which could have placed highly identifiable letters in the test set.
+
+Next a confusion matrix has been computed using our test data, an accuracy of 1 is reported with our 95% confidence interval between 0.8766 and 1.
+The no - information rate is the largest proportion of the observed classes meaning letter appear 1:2.The p value is accepted being below the threshold.
+
+
+
+## 1.1
+```{r }
+set.seed(42)
+#test data sets:
+# randomly shuffle rows:
+data_shuffled <- data[sample(nrow(data)),]
+head(data_shuffled)
+# first 80% will be training data:
+training_data = data_shuffled[1:112,]
+test_data = data_shuffled[113:140,]
+
+
+
+# Lets fit a logistic regression model using aspect_ratio:
+#-----------------------------------------------#
+#            log                                #
+#-----------------------------------------------#
+
+glmfit <- glm(is.letter ~ aspect_ratio+nr_pix, data = training_data, family = 'binomial') 
+summary(glmfit)
+
+# To plot the fitted curve, let's make a data frame containing the predicted 
+# values across the range of feature values (i.e. across the x-axis)
+#-----------------------------------------------#
+#             fit cur                           #
+#-----------------------------------------------#
+
+x.range = range(training_data[["aspect_ratio"]])
+x1.range = range(training_data[["nr_pix"]])
+
+x.values = seq(x.range[1],x.range[2],length.out=1000)
+
+x1.values = seq(x1.range[1],x1.range[2],length.out=1000)
+
+
+fitted.curve <- data.frame(aspect_ratio = x.values, nr_pix = x1.values)
+summary(fitted.curve)
+fitted.curve[["is.letter"]] = predict(glmfit, fitted.curve, type="response")
+
+
+
+#-----------------------------------------------#
+#                           plt                 #
+#-----------------------------------------------#
+
+#https://stackoverflow.com/questions/64222986/plotting-logistic-regression-with-multiple-predictors
+# Plot the training data and the fitted curve:
+
+library(ggeffects)
+
+training_data$multiLetter = as.numeric(training_data$is.letter == "yes")
+mdl = glm(multiLetter ~ aspect_ratio +nr_pix,data=training_data,family="binomial")
+plot(ggpredict(mdl,c("aspect_ratio[all]","nr_pix"), title = "Multi varaible logistcal regression"))
+
+
+# Assuming a p>0.5 cut-off, calculate accuracy on the training data
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#-----------------------------------------------#
+#             acc training                       #
+#-----------------------------------------------#
+
+training_data[["predicted_val"]] = predict(glmfit, training_data, type="response")
+training_data[["predicted_class"]] = 0
+training_data[["predicted_class"]][training_data[["predicted_val"]] > 0.5] = 1
+
+
+
+correct_items = training_data[["predicted_class"]] == training_data[["multiLetter"]] 
+
+
+# proportion correct:
+nrow(training_data[correct_items,])/nrow(training_data)
+
+# proportion incorrect:
+nrow(training_data[!correct_items,])/nrow(training_data)
+
+
+
+# Assuming a p>0.5 cut-off, calculate accuracy on the test data
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#-----------------------------------------------#
+#              acc test                         #
+#-----------------------------------------------#
+test_data$multiLetter1 = as.numeric(test_data$is.letter == "yes")
+
+test_data[["predicted_val"]] = predict(glmfit, test_data, type="response")
+test_data[["predicted_class"]] = 0
+test_data[["predicted_class"]][test_data[["predicted_val"]] > 0.5] = 1
+
+correct_items1 = test_data[["predicted_class"]] == test_data[["multiLetter1"]] 
+
+# proportion correct:
+nrow(test_data[correct_items1,])/nrow(test_data)
+
+# proportion incorrect:
+nrow(test_data[!correct_items1,])/nrow(test_data)
+
+
+#-----------------------------------------------#
+#              confusion matrix                 #
+#-----------------------------------------------#
+library(caret)
+#use model to predict probability of default
+predicted <- predict(glmfit, test_data, type="response")
+
+
+#create confusion matrix
+confusionMatrix(as.factor(test_data$multiLetter1), as.factor(test_data$predicted_class))
+
+
+
+
+
+
+
+```
+We repeat 1.1 but using 5- fold cross validation over all 140 items with no separate test and training data due to the nature of fold cross validation. K-Fold CV is where a given data set is split into a K number of sections/folds where each fold is used as a testing set at some point. Lets take the scenario of 5-Fold cross validation(K=5). Here, the data set is split into 5 folds. In the first iteration, the first fold is used to test the model and the rest are used to train the model. In the second iteration, 2nd fold is used as the testing set while the rest serve as the training set. This process is repeated until each fold of the 5 folds have been used as the testing set.
+We create a generalized linear model, with two class "yes" and "no" for if the sample is a letter or symbol.
+the summary of sample sized being 112,
+our accuracy is reported as 0.9214 which is similar to 1.1 results.
+
+The Kappa statistic  is a metric that compares an Observed Accuracy with an Expected Accuracy (random chance). The kappa statistic is used not only to evaluate a single classifier, but also to evaluate classifiers among  themselves. In addition, it takes into account random chance (agreement with a random classifier), which generally means it is less misleading than simply using accuracy as a metric, with our 0.83 value it still yields an impressive accuracy.
+
+
+## 1.2
+```{r}
+# Cross Validation
+library(caret)
+kfoldsk = 5
+train_control <- trainControl(method="cv", number=kfoldsk, 
+                              savePredictions=TRUE, 
+                              classProbs = TRUE) 
+
+
+# train the model
+model <- train(is.letter~nr_pix + aspect_ratio, data=data, 
+               trControl=train_control, method="glm", family="binomial")
+# summarize results
+print(model)
+
+library(caret)
+
+
+#create confusion matrix
+#confusion Matrix(model$pred$yes >0.5,model$pred$obs == "yes")
+
+
+```
+We plot an ROC curve foe the classier.
+An ROC curve (receiver operating characteristic curve) is a graph showing the performance of a classification model at all classification thresholds. This curve plots two parameters:
+
+True Positive Rate
+False Positive Rate
+
+AUC stands for "Area under the ROC Curve." That is, AUC measures the entire two-dimensional area underneath the entire ROC curve  from (0,0) to (1,1).
+AUC ranges in value from 0 to 1. A model whose predictions are 100% wrong has an AUC of 0.0; one whose predictions are 100% correct has an AUC of 1.0
+Our AUC-ROC is 0.97 also supporting the two earlier results.
+
+## 1.3 
+```{r}
+#. Plot an ROC curve for the classifier. Hint: check out the MLeval library and the example R code
+#provided for Topic 20 – Evaluation. Briefly interpret the results.
+
+
+
+library(MLeval)
+
+res <- evalm(model)
+res$roc
+
+
+
+
+
+
+```
+
+## Section 2 Introduction
+In this section, 4-way classification for letters is performed, with only “a” and “j” ; all others  excluded, happy faces, sad faces, and exclamation marks
+## 2.1 
+k-nearest neighbor classification with all odd values k between 1-13 using any 4 features in the features in the csv is performed. Which base foundation is the data is separate and individual. I am looking for predictors that will separate the 4 classifiers distinctly.
+
+First I split up and create a new data frame using a,j and symbol set.
+
+First I select my four features, This is done by referring to the examination of the correlation coefficients from assignment one.I picked 4 variables which highly correlate with each other for our classifiers.
+ Unsupervised feature selection techniques ignores the target variable, such as methods that remove redundant variables using correlation.
+Because the data follows input variable being numerical,as well as the output variable being numerical we can uses Pearson coefficient to determine importance of feature selection.
+Included below the graph from assignment 2 
+
+
+Below I test out each classifier using a scatter plot due to the base foundation of the k-nearest classification of having the classifiers grouped closest and independent of each other of the 2 correlated and where letter sits compared to the 4 classifiers;letter,smiley,sad,xclaim.
+Both of these have a clear separation between letter and symbol.
+
+Wrapper methods evaluate multiple models using procedures that add and/or remove predictors to find the optimal combination that maximizes model performance.I checked multiple combinations of predictors to asses whether they improved the model on the basis of separation of their scatter plots 
+
+
+This can also be verified by the accuracy produced on our data which is 
+1
+0.9473684
+0.9473684
+0.9342105
+0.9210526
+0.9210526
+0.9210526
+Respectively through the folds we see from point 3 that the accuracy is repeated but follows on the trend of over 90% accuracy at predicating.  
+
+A bar chart representation below is the only visualization of the data available however it is too similar its not a good representation. 
+
+
+```{r}
+#k-nearest classification odd values of k between 1-13 using any 4 features  a-j 76 
+#Creation of new data set 
+#first I split data frame
+data21 <-data.frame(data[1:8, ])
+data23 <-data.frame(data[73:80, ])
+data22 <-data.frame(data[81:140, ])
+dataf<- rbind(data21, data23,data22) 
+library(ggplot2)
+library(varhandle)
+#train_classifier = factor(train$label,auto_class_conversion = TRUE, verbose = FALSE)
+
+dataf$train_classifier[dataf$label %in% c("a","j")] = "letter"
+data$train_classifier[data$label %in% c("sad")] <- "sad"
+data$train_classifier[data$label %in% c("smiley")] <- "smiley"
+data$train_classifier[data$label %in% c( "xlaim")] <- "xclaim"
+View(dataf)
+
+#non-letters
+
+# scatter plot
+scatterplot <- ggplot(dataf, aes(x=no_neigh_above, y=no_neigh_right, color=train_classifier)) +
+  geom_point()
+scatterplot
+
+scatterplot1 <- ggplot(dataf, aes(x=nr_pix, y=rows_with_3p, color=train_classifier)) +
+  geom_point()
+scatterplot1
+
+set.seed(42)
+#Feature selection
+#no_neigh_above
+#no_neigh_right
+#rows_with_3p
+#NR_pix 
+
+
+train= dataf
+
+length(train)
+
+library(ISLR)
+library(class) # for `kn`, and other classifiers
+
+
+train.X = cbind(dataf$nr_pix,dataf$no_neigh_above,dataf$no_neigh_right,dataf$rows_with_3p)
+summary(train.X)
+
+test.X = train.X
+
+train.Direction = dataf$multiLetter2
+
+
+
+ks = c(1,3,5,7,9,11,13)
+
+accuracies = c()
+
+# a for loop
+
+for (k in ks){
+  print(k)
+  knn.pred=knn(train.X,test.X,train.Direction,k=k)
+  accuracies = cbind(accuracies, mean(knn.pred==train.Direction))
+}
+
+View(accuracies)
+
+
+
+
+
+
+
+```
+
+## 2.2
+We perform our k - nearest -neighbor classification using 5 fold cross-validation of the same four features .We examine the cross validate accuracy for each value of k again odd vales of 1-13 inclusive.
+Our set contain 76 samples with our 4 predictors and  4 classes: 'letter', 'sad', 'smiley', 'xclaim'.
+Our summary statics are as follow:
+
+Our accuracy is not consistent with our impervious results this could be due to a more precise model fit, and our 4 predictors may not be the best first for predicating. On reflection a different set of predictors would classify the data with a better accuracy to reach our 90% average. However our accuracy is over the 50% accepted rate.
+
+
+
+```{r}
+# Cross-validation KNN in R
+
+require(class) # for `knn`
+require(ggplot2) # for plotting
+
+data21 <-data.frame(data[1:8, ])
+data23 <-data.frame(data[73:80, ])
+data22 <-data.frame(data[81:140, ])
+dataf<- rbind(data21, data23,data22) 
+library(ggplot2)
+library(varhandle)
+#train_classifier = unfactor(train$label,auto_class_conversion = TRUE, verbose = FALSE)
+
+dataf$train_classifier[dataf$label %in% c("a","j")] = "letter"
+data$train_classifier[data$label %in% c("sad")] <- "sad"
+data$train_classifier[data$label %in% c("smiley")] <- "smiley"
+data$train_classifier[data$label %in% c( "xlaim")] <- "xclaim"
+View(dataf)
+# Perform crossvalidation
+
+set.seed(42)
+# The caret package for R can automate the crossvalidation procedure
+dataf$classifier = dataf$train_classifier
+
+library(caret)
+ks = c(1,3,5,7,9,11,13)
+
+# define training control
+train_control <- trainControl(method="cv", number=kfoldsk)
+
+tune_grid <- expand.grid(k = ks)
+
+# train the model
+model <- train(classifier~nr_pix + no_neigh_above + no_neigh_right + rows_with_3p, data=dataf, 
+               trControl=train_control, tuneGrid=tune_grid, method="knn")
+# summarize results
+print(model)
+
+acc_2.2 = model$results$Accuracy
+
+```
+## 2.3
+For the best value of K we report the confusion matrix and examine which pairs of classes are the most difficult to discriminate.
+
+Here a 100 accuracy is reported which correctly classified the entire set using the predictors  as shown below.
+
+I again checked if there was a mistake but printed out each set and compared by hand and was seen that it matched 100%.
+
+In this case I cant say which pairs of classes were to most difficult to discriminate against due to its 100% accuracy.
+
+```{r}
+
+# Perform cross validation
+
+
+# The caret package for R can automate the cross validation procedure
+dataf$classifier = dataf$train_classifier
+
+library(caret)
+ks = 1
+
+# define training control
+train_control <- trainControl(method="cv", number=5)
+
+tune_grid <- expand.grid(k = ks)
+
+# train the model
+model <- train(classifier~nr_pix + no_neigh_above + no_neigh_right + rows_with_3p, data=dataf, 
+               trControl=train_control, tuneGrid=tune_grid, method="knn")
+
+knn_cv_pred = predict(model)
+
+table(knn_cv_pred,dataf$classifier)
+
+
+
+```
+
+## 2.4
+Which reference to figure 2.17 of the ISLR textbook which shows the classification error rate over the training set and the  cross validated classification error rate for each value of 1/k 
+
+
+ we have
+plotted the KNN test and training errors as a function of 1/K. As 1/K increases, the method becomes more flexible. As in the regression setting, the
+training error rate consistently declines as the flexibility increases. However,
+the test error exhibits a characteristic U-shape, declining at first  before increasing again when the
+method becomes excessively flexible and overfits.We see in this case that the model steadily declines and reaches a 0% error rate with the 2.1 classification and around 40% error rate for our 2.2 classification.
+
+
+```{r}
+
+#2.1
+ks = c(1,1/3,1/5,1/7,1/9,1/11,1/13)
+
+er_1 = 1- accuracies
+#2.2 
+er_2 = 1- acc_2.2
+ 
+
+
+  #Error Rate plot
+# classification error from 2.1
+plot(ks,er_1,type='o',xlab="1/k",ylim=c(0,0.6),  ylab="Error Rate",col="blue", main = "Error Rate comparing cross validation and no cross validation")
+
+# cross validated classification and accuracy rate from 2.2
+lines(ks,er_2,type='o',col="red")
+```
+
+## Section 3 
+In section 3 a larger data set was provided to us which consist of 80 training items for each of the 13 image types (1040 training 
+items in total). The features are in the same format as Assignment 2.
+In this section, you are to perform classification with respect to the 13 fine-grained image categories, 
+using all the features. 
+
+## 3.1
+Classification is performed with random forests using 5-fold cross-validation.
+Near the top of the classifiers hierarchy is the random Forrest classier.
+A large number of individual trees in the random Forrest spits out a class prediction and the class with the most votes becomes the model predictions.The reason we favor Random forests is because A large number of relatively uncorrelated models (trees) operating as a committee will outperform any of the individual constituent models.
+
+With forest tree sizes of 25, 75, 125, 175, 225, 275, 325, 375.
+Looking at the results we find:
+The accuracy range is  0.7484615 
+       0.7407692  
+       0.7453846  
+      0.7476923  which is on the 0.4 line.
+      With our Kappa having a similar resemblance sitting on the 0.72 line.
+    Accuracy was used to select the optimal model using
+ the largest value.
+The final value used for the model was mtry = 2.  
+      
+When we view the model accuracy we retrieve:
+Accuracy below in the table:
+
+
+The most successful run is 175 6 which we examine further in section 3.2
+
+```{r}
+set.seed(42)
+
+library(caret)
+library(ranger)
+library(grid)
+library(randomForest)
+
+getwd()
+setwd("C:/Users/megan/OneDrive/Desktop/a3_40302488")
+
+#create a list of the files from your target directory
+df_csv <- list.files(path= ".",
+                     pattern="all_features.csv", 
+                     full.names = TRUE)
+
+features <- read.table(df_csv)
+
+
+
+#removing index and blank col for training.
+reducedfeaturesDataset <-features[c(1, 3:15)]
+
+
+names(reducedfeaturesDataset) <- c("label", "nr_pix", "row_with_1",
+                                   "cols_with_1", "rows_with_3p", "cols_with_3p", "aspect_ratio","no_neigh_left", "no_neigh_right", "no_neigh_horiz","no_neigh_above","no_neigh_below","no_neigh_vert","diagonalness")
+
+#adding labels as a factors to predict on
+reducedfeaturesDataset$label <- as.factor(reducedfeaturesDataset$label)
+reducedfeaturesDataset
+
+ntree=c(25,75,125,175,225,275,325,375)
+
+## 5-fold cross validation using grid search
+fit_control <- trainControl(
+  method = "cv",
+  number = 5)
+
+# tune grid in the format that is used by the ranger package.
+#min node size 1 is equal to classification.
+tgrid <- expand.grid(
+  .mtry = c(2,4,6,8)
+)
+
+rfModelResult <- list()
+
+y =  c(25,75,125,175,225,275,325,375)
+rfModelAccuracy=c()
+
+for(i in y ) {
+  
+  rf_fit <- train(label ~ ., 
+                  data = reducedfeaturesDataset, 
+                  method = "rf",
+                  trControl = fit_control,
+                  tuneGrid = tgrid,
+                  ntree = i)
+  
+  key <- toString(ntree)
+  rfModelResult[[key]] <- rf_fit
+  
+  rfModelAccuracy = rbind(rfModelAccuracy, rf_fit$results$Accuracy)
+}
+
+
+#
+Nt_nums <- c("25","75","125","175","225","275","325","375")
+
+#create a table of the best models from all the ntree's loops 
+colnames(rfModelAccuracy) <- c("2","4","6","8")
+rownames(rfModelAccuracy) <- Nt_nums
+
+# best accuracy value
+rows_cols = which(rfModelAccuracy == max(rfModelAccuracy), arr.ind = TRUE)
+# number of trees
+nt_best = strtoi(Nt_nums[rows_cols[1]])
+# number of features considered at each node
+np_best = rows_cols[2]*2
+
+
+
+# np=2
+plot(Nt_nums,rfModelAccuracy[,1],type='o',xlab="Nt",ylim=c(0.7,0.8), ylab="Accuracy",col="blue", main="Nt value plotted with Np value")
+
+# np=4
+lines(Nt_nums,rfModelAccuracy[,2],type='o',col="red")
+
+# np=6
+lines(Nt_nums,rfModelAccuracy[,3],type='o',col="green")
+
+# np=8
+lines(Nt_nums,rfModelAccuracy[,4],type='o',col="purple")
+
+legend(300,0.74,legend=c("Np = 2","Np = 4", "Np = 6","Np = 8"), col = c("blue","red","green","purple"), lty=1:1, cex = 0.8)
+
+
+```
+
+## 3.2 
+With Random Forrest there is an element of randomness. Lets examine the accuracy across different independent runs.The model is refitted 15 times to obtain 15 cross-validated accuracy scores.
+Our mean is 0.7394359 and standard deviation of 0.008543394. The model performs significantly better than chance with the reporting above.
+
+
+
+
+
+
+```{r}
+#================================
+train.control <- trainControl(
+  method = "cv",
+  number = 5,
+  search = "grid")
+
+# tune grid in the format that is used by the ranger package.
+#min node size 1 is equal to classification.
+
+tgrid <- expand.grid(.mtry=c(np_best))
+
+#vector to hold the values of the 
+resultsRF <- c()
+
+#add in best model details for training here and run 15 times.
+for(i in (1:15) ) {
+  
+  rf_fit <- train(label ~ ., 
+                  data = reducedfeaturesDataset, 
+                  method = "rf",
+                  trControl = fit_control,
+                  tuneGrid = tgrid,
+                  ntree = nt_best)
+  
+
+  resultsRF = rbind(resultsRF, rf_fit$results$Accuracy)
+  
+}
+
+resultsRF
+mean(resultsRF[,1])
+sd(resultsRF[,1])
+
+
+```
+## Conclusion
+
+The report focuses on Modeling and machine learning to create an algorithm to predict the classifier of the data set and given data set.
+
+I discovered many different techniques and examined and compared the accuracy results against each other.
+
+I thoroughly enjoyed this assignment as my R skills have grown since the previous assignment and I applied lateral thinking and solutions to problems which arouse during the coding.
+
+You can have data without information but not information without data is key thing I learnt through this assignment as I created different visualizations.
+
